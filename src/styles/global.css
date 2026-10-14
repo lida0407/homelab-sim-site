@@ -3,7 +3,7 @@
 :root {
   --bg: #070b14; --bg2: #0b1120; --panel: rgba(17, 24, 40, .72); --panel-solid: #0f1626;
   --line: rgba(148, 163, 184, .16); --line2: rgba(148, 163, 184, .28);
-  --text: #e7eef8; --muted: #9aa7ba; --dim: #6b7a90;
+  --text: #e7eef8; --muted: #9aa7ba; --dim: #8a97ab;
   --accent: #38bdf8; --accent-ink: #04121c;
   --power: #fbbf24; --heat: #fb7185; --net: #38bdf8; --cpu: #34d399; --ai: #a78bfa; --bad: #f87171; --ok: #34d399;
   --radius: 14px; --max: 1160px; --gutter: 16px;
@@ -106,6 +106,7 @@ details.faq p { margin: .7em 0 0; color: #c9d4e3; }
 .result .k { color: var(--muted); font-size: .8rem; }
 .result .v { font-family: var(--mono); font-size: 1.25rem; font-weight: 600; }
 .result.big .v { font-size: 1.6rem; color: var(--accent); }
+.calc [data-o='ratio'], .calc [data-o='msg'] { min-height: 1.6em; }
 .notes { margin: 12px 0 0; padding-left: 1.2em; color: #fcd34d; font-size: .9rem; }
 .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
 .tabs button { font: inherit; font-size: .9rem; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--line2); background: transparent; color: var(--muted); cursor: pointer; min-height: 40px; }
