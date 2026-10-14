@@ -1,0 +1,50 @@
+---
+import PriceField from './PriceField.astro';
+---
+<div class="calc" data-calc="idle">
+  <h3>Idle savings and payback</h3>
+  <PriceField />
+  <div class="grid grid-2" style="margin-top:16px">
+    <div>
+      <p class="small muted" style="margin:0 0 8px"><strong>Savings from a change</strong></p>
+      <div class="calc-grid">
+        <label class="field">Idle watts before <input data-b type="number" inputmode="decimal" min="0" value="150" /></label>
+        <label class="field">Idle watts after <input data-a type="number" inputmode="decimal" min="0" value="30" /></label>
+      </div>
+      <div class="results" aria-live="polite">
+        <div class="result"><div class="k">Watts saved</div><div class="v" data-o="w">–</div></div>
+        <div class="result big"><div class="k">Per month</div><div class="v" data-o="m">–</div></div>
+        <div class="result"><div class="k">Per year</div><div class="v" data-o="y">–</div></div>
+      </div>
+    </div>
+    <div>
+      <p class="small muted" style="margin:0 0 8px"><strong>Payback of a replacement</strong></p>
+      <div class="calc-grid">
+        <label class="field">Old box, average W <input data-ow type="number" inputmode="decimal" min="0" value="150" /></label>
+        <label class="field">New box, average W <input data-nw type="number" inputmode="decimal" min="0" value="30" /></label>
+        <label class="field">New hardware cost <input data-cost type="number" inputmode="decimal" min="0" value="400" /></label>
+        <label class="field">Resale value of the old box <input data-resale type="number" inputmode="decimal" min="0" value="100" /></label>
+      </div>
+      <div class="results" aria-live="polite"><div class="result big"><div class="k">Pays back in</div><div class="v" data-o="pb">–</div></div></div>
+    </div>
+  </div>
+</div>
+<script>
+  import { idleSavings, paybackMonths } from '../../lib/calc/idleSavings';
+  import { bindPrice, num, fmt, money } from '../../lib/prefs';
+  document.querySelectorAll<HTMLElement>('[data-calc="idle"]').forEach((root) => {
+    const q = (s: string) => root.querySelector(s) as HTMLInputElement;
+    const out = (k: string, v: string) => { (root.querySelector(`[data-o="${k}"]`) as HTMLElement).textContent = v; };
+    let price: () => { currency: string; price: number };
+    const run = () => {
+      const p = price();
+      const s = idleSavings(num(q('[data-b]')), num(q('[data-a]')), p.price);
+      out('w', `${fmt(s.savedW)} W`); out('m', money(p.currency, s.savedPerMonth)); out('y', money(p.currency, s.savedPerYear));
+      const m = paybackMonths({ oldAvgW: num(q('[data-ow]')), newAvgW: num(q('[data-nw]')), pricePerKwh: p.price, newHardwareCost: num(q('[data-cost]')), oldResaleValue: num(q('[data-resale]')) });
+      out('pb', m === null ? 'Never: the new box doesn’t draw less' : `${fmt(m, 1)} months`);
+    };
+    price = bindPrice(root, run);
+    root.addEventListener('input', run);
+    run();
+  });
+</script>

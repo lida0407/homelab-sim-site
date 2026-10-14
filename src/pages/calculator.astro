@@ -1,0 +1,42 @@
+---
+import Base from '../layouts/Base.astro';
+import Faq from '../components/Faq.astro';
+import RackDensity from '../components/calc/RackDensity.astro';
+import { u, abs } from '../lib/url';
+import { calculatorFaq } from '../data/faq';
+const app = { '@context': 'https://schema.org', '@type': 'WebApplication', name: 'Rack Density Calculator', url: abs('/calculator'),
+  description: 'Calculate how many servers or homelab devices fit in one rack by space, power and cooling, the kW per rack, and the monthly electricity cost. Presets for 10-inch mini racks, 12U wall racks, 22U and 42U racks.',
+  applicationCategory: 'UtilitiesApplication', operatingSystem: 'Any', isAccessibleForFree: true, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } };
+---
+<Base title="Rack Density Calculator: Servers per Rack, kW & Cost"
+  description="Free rack density calculator for homelab and server racks: how many devices fit by space, power and cooling, kW per rack and cost per month."
+  path="/calculator" ogImage="/og/calculator.png" schema={[app]}>
+  <section class="section-tight">
+    <div class="wrap">
+      <p class="eyebrow">Free tool · runs in your browser, no data leaves it</p>
+      <h1>Rack Density Calculator</h1>
+      <p class="lead">How many devices fit in your rack before space, power or cooling runs out, and which one runs out first? Works for a 10-inch mini rack in a closet or a 42U rack in the basement.</p>
+      <RackDensity />
+    </div>
+  </section>
+  <section class="section-tight">
+    <div class="wrap narrow prose">
+      <h2>How rack density is calculated</h2>
+      <pre><code>by_space   = floor(rack_U / device_U)
+by_power   = floor(circuit_kW × 1000 / W_per_device)
+by_cooling = floor(cooling_kW × 1000 / W_per_device)
+devices    = min(by_space, by_power, by_cooling)
+circuit_kW = V × A × PF / 1000          (single-phase)
+circuit_kW = √3 × V × A × PF / 1000     (three-phase)</code></pre>
+      <p>Real rack density is the floor of three independent ceilings. Whichever is lowest is the bottleneck: usually power or heat in a homelab, cooling in a modern data center, space only in very small racks.</p>
+      <h2>More calculators</h2>
+      <ul>
+        <li><a href={u('/learn/homelab-power-calculator')}>Homelab power cost</a>: what your whole lab costs per month, device by device</li>
+        <li><a href={u('/learn/tokens-per-watt')}>Tokens per watt</a>: the efficiency of your home AI box</li>
+        <li><a href={u('/learn/10-inch-mini-rack-planner')}>10-inch rack planner</a>: will it fit, and how many U</li>
+        <li><a href={u('/learn/proxmox-power-usage')}>Proxmox idle savings and payback</a></li>
+      </ul>
+    </div>
+  </section>
+  <section class="section"><div class="wrap narrow"><Faq items={calculatorFaq} /></div></section>
+</Base>

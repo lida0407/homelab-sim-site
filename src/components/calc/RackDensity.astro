@@ -1,0 +1,89 @@
+---
+import PriceField from './PriceField.astro';
+import { u } from '../../lib/url';
+const presets = [
+  { id: '10', label: '10" mini rack (8U)', rackU: 8, serverU: 1, w: 35, cool: 0.5 },
+  { id: '12', label: '12U wall rack', rackU: 12, serverU: 1, w: 60, cool: 1 },
+  { id: '22', label: '22U half rack', rackU: 22, serverU: 2, w: 150, cool: 2 },
+  { id: '42', label: '42U full rack', rackU: 42, serverU: 2, w: 250, cool: 5 },
+];
+const circuits = [
+  { v: 'single-230-16', label: 'Single-phase 230 V · 16 A' }, { v: 'single-230-10', label: 'Single-phase 230 V · 10 A' },
+  { v: 'single-120-15', label: 'Single-phase 120 V · 15 A' }, { v: 'single-120-20', label: 'Single-phase 120 V · 20 A' },
+  { v: 'three-400-16', label: 'Three-phase 400 V · 16 A' }, { v: 'three-400-32', label: 'Three-phase 400 V · 32 A' },
+];
+---
+<div class="calc" data-calc="density" id="calculator">
+  <p class="small muted" style="margin:0 0 8px">Start from</p>
+  <div class="chips" style="margin-bottom:16px">
+    {presets.map((p) => <button type="button" class="btn btn-ghost" style="min-height:40px" data-preset={JSON.stringify(p)}>{p.label}</button>)}
+  </div>
+  <p class="small muted" style="margin-top:-6px">Homelab values are typical starting points, not measurements. Change any field.</p>
+  <div class="calc-grid">
+    <label class="field">Rack height (U) <input data-ru type="number" inputmode="decimal" min="1" value="42" /><span class="hint">42U full · 22–24U half · 12U wall · 6–12U 10-inch</span></label>
+    <label class="field">Device size (U each) <select data-su><option value="1">1U</option><option value="2" selected>2U</option><option value="3">3U</option><option value="4">4U</option><option value="8">8U (GPU / blade)</option></select></label>
+    <label class="field">Power draw per device (W) <input data-w type="number" inputmode="decimal" min="1" value="250" /><span class="hint">Mini PC 10–40 W · NAS 30–80 W · 1U/2U server 100–400 W · GPU box 300–1,200 W</span></label>
+    <label class="field">Cooling capacity (kW) <input data-cool type="number" inputmode="decimal" min="0.1" step="0.1" value="5" /><span class="hint">Closet with a fan ≈ 0.3–1 kW · basement room ≈ 1–3 kW · data-center row 5–30 kW</span></label>
+    <label class="field">Circuit <select data-circ>{circuits.map((c) => <option value={c.v}>{c.label}</option>)}</select></label>
+    <label class="field">Power factor <input data-pf type="number" inputmode="decimal" min="0.5" max="1" step="0.01" value="0.95" /></label>
+    <PriceField />
+  </div>
+  <div class="results" aria-live="polite">
+    <div class="result big"><div class="k">Devices per rack</div><div class="v" data-o="n">–</div></div>
+    <div class="result"><div class="k">Draw</div><div class="v" data-o="kw">–</div></div>
+    <div class="result"><div class="k">If it runs 24/7</div><div class="v" data-o="cost">–</div></div>
+    <div class="result"><div class="k">Status</div><div class="v" data-o="st">–</div></div>
+  </div>
+  <p data-o="msg" style="margin:14px 0 6px"></p>
+  <div class="bars" data-bars></div>
+  <p class="small muted" style="margin-top:10px">Cost = draw (kW) × 730 hours × your price. An estimate: real draw depends on load. Green needs ≥ 20 % headroom on power and cooling.</p>
+  <aside class="card" style="margin-top:18px">
+    <h3>See this rack in 3D</h3>
+    <p class="muted">What each device draws, what's plugged where, and what goes dark if the UPS fails. Free, no account.</p>
+    <a class="btn btn-primary" href={u('/try')}>Try it free</a>
+  </aside>
+</div>
+<script>
+  import { rackDensity, type Phase } from '../../lib/calc/rackDensity';
+  import { bindPrice, num, fmt, money } from '../../lib/prefs';
+  document.querySelectorAll<HTMLElement>('[data-calc="density"]').forEach((root) => {
+    const q = (s: string) => root.querySelector(s) as HTMLInputElement;
+    const out = (k: string, v: string) => { (root.querySelector(`[data-o="${k}"]`) as HTMLElement).textContent = v; };
+    let price: () => { currency: string; price: number };
+    const run = () => {
+      const [phase, volts, amps] = q('[data-circ]').value.split('-');
+      try {
+        const r = rackDensity({ rackU: num(q('[data-ru]')), serverU: num(q('[data-su]')), wattsPerServer: num(q('[data-w]')), coolingKw: num(q('[data-cool]')),
+          supply: { phase: phase as Phase, volts: +volts, amps: +amps, pf: num(q('[data-pf]'), 0.95) } });
+        const p = price();
+        out('n', String(r.servers)); out('kw', `${fmt(r.drawKw, 2)} kW`);
+        out('cost', `${money(p.currency, r.drawKw * 730 * p.price, 0)} / month`);
+        out('st', r.status === 'ok' ? 'OK' : r.status === 'warn' ? 'Tight' : 'Critical');
+        const word = { space: 'Space', power: 'Power', cooling: 'Cooling' }[r.bottleneck];
+        out('msg', r.status === 'critical' ? `${word} is the bottleneck and has no safe margin. Add capacity or lower density.`
+          : r.status === 'warn' ? `${word} is the bottleneck, with under 20 % headroom.` : `${word} is the limit; power and cooling keep ≥ 20 % headroom.`);
+        const rows: [string, number, string][] = [
+          ['Space', r.util.space, `${r.servers * num(q('[data-su]'))} / ${fmt(num(q('[data-ru]')))} U`],
+          ['Power', r.util.power, `${fmt(r.drawKw, 2)} / ${fmt(r.supplyKw, 2)} kW`],
+          ['Cooling', r.util.cooling, `${fmt(r.drawKw, 2)} / ${fmt(num(q('[data-cool]')), 2)} kW`],
+        ];
+        root.querySelector<HTMLElement>('[data-bars]')!.replaceChildren(...rows.map(([n, f, t]) => {
+          const b = document.createElement('div'); b.className = 'bar';
+          const a = document.createElement('span'); a.textContent = n;
+          const v = document.createElement('span'); v.className = 'muted'; v.textContent = `${t} · ${fmt(f * 100)} %`;
+          const tr = document.createElement('div'); tr.className = 'track';
+          const fi = document.createElement('div'); fi.className = 'fill'; fi.style.width = `${Math.min(100, f * 100)}%`;
+          fi.style.background = f > 0.95 ? '#f87171' : f > 0.8 ? '#fbbf24' : '#34d399';
+          tr.appendChild(fi); b.append(a, v, tr); return b;
+        }));
+      } catch { out('n', '–'); }
+    };
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) => b.addEventListener('click', () => {
+      const p = JSON.parse(b.dataset.preset!);
+      q('[data-ru]').value = p.rackU; q('[data-su]').value = String(p.serverU); q('[data-w]').value = p.w; q('[data-cool]').value = p.cool; run();
+    }));
+    price = bindPrice(root, run);
+    root.addEventListener('input', run); root.addEventListener('change', run);
+    run();
+  });
+</script>

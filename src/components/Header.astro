@@ -1,0 +1,56 @@
+---
+import { u } from '../lib/url';
+import { BRAND, PRODUCT_NAME } from '../config/brand';
+const path = Astro.url.pathname;
+const links = [
+  { href: '/calculator', label: 'Calculator' },
+  { href: '/learn', label: 'Learn' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/changelog', label: 'Changelog' },
+];
+const here = (href: string) => path.startsWith(u(href));
+---
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="logo" href={u('/')} aria-label={`${BRAND} — ${PRODUCT_NAME} home`}>
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2" fill="none" stroke="#38bdf8" stroke-width="2"/><rect x="7" y="5" width="10" height="3" rx="1" fill="#38bdf8"/><rect x="7" y="10.5" width="10" height="3" rx="1" fill="#34d399"/><rect x="7" y="16" width="10" height="3" rx="1" fill="#fbbf24"/></svg>
+      <span>{BRAND}</span>
+    </a>
+    <nav aria-label="Main">
+      <details class="menu">
+        <summary aria-label="Menu">Menu</summary>
+        <ul>
+          <li><a href={u('/')} aria-current={path === u('/') ? 'page' : undefined}>{PRODUCT_NAME}</a></li>
+          {links.map((l) => <li><a href={u(l.href)} aria-current={here(l.href) ? 'page' : undefined}>{l.label}</a></li>)}
+        </ul>
+      </details>
+    </nav>
+    <a class="btn btn-primary btn-sm" href={u('/try')}>Try it free</a>
+  </div>
+</header>
+<style>
+  .site-header { position: sticky; top: 0; z-index: 20; background: rgba(7, 11, 20, .86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; gap: 16px; min-height: 62px; }
+  .logo { display: inline-flex; align-items: center; gap: 9px; color: var(--text); text-decoration: none; font-weight: 800; letter-spacing: .08em; font-size: .95rem; }
+  nav { margin-left: auto; }
+  .btn-sm { min-height: 40px; padding: 0 14px; font-size: .92rem; }
+  .menu summary { list-style: none; cursor: pointer; color: var(--muted); padding: 8px 10px; border: 1px solid var(--line2); border-radius: 9px; font-size: .9rem; min-height: 40px; display: flex; align-items: center; }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu ul { list-style: none; margin: 0; padding: 8px; position: absolute; right: var(--gutter); left: var(--gutter); top: 64px; background: var(--panel-solid); border: 1px solid var(--line2); border-radius: 12px; display: grid; gap: 2px; }
+  .menu a { display: block; padding: 11px 12px; color: var(--text); text-decoration: none; border-radius: 8px; }
+  .menu a:hover, .menu a[aria-current='page'] { background: rgba(56,189,248,.1); }
+  @media (min-width: 820px) {
+    .menu summary { display: none; }
+    .menu { display: block; }
+    .menu ul { position: static; display: flex; gap: 4px; background: none; border: 0; padding: 0; }
+    .menu a { padding: 8px 12px; color: var(--muted); font-size: .95rem; }
+    .menu a[aria-current='page'], .menu a:hover { color: var(--text); background: none; }
+  }
+</style>
+<script>
+  // Desktop: keep the nav <details> open so links are always visible.
+  const m = document.querySelector<HTMLDetailsElement>('.menu');
+  const mq = window.matchMedia('(min-width: 820px)');
+  const sync = () => { if (m) m.open = mq.matches; };
+  sync(); mq.addEventListener('change', sync);
+</script>

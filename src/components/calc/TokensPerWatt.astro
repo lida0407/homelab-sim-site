@@ -1,0 +1,53 @@
+---
+import PriceField from './PriceField.astro';
+---
+<div class="calc" data-calc="tpw">
+  <h3>Tokens per watt calculator</h3>
+  <div class="calc-grid">
+    <label class="field">Output tokens per second <input data-tps type="number" inputmode="decimal" min="0" step="0.1" value="30" /></label>
+    <label class="field">Watts at the wall while generating <input data-w type="number" inputmode="decimal" min="0" step="1" value="350" /></label>
+    <PriceField />
+    <label class="field" style="flex-direction:row; align-items:center; gap:10px; margin-top:22px"><input data-idle-on type="checkbox" style="width:auto; min-height:auto" checked /> Include idle time</label>
+    <label class="field" data-idle>Idle watts <input data-iw type="number" inputmode="decimal" min="0" step="1" value="90" /></label>
+    <label class="field" data-idle>Hours generating per day <input data-h type="number" inputmode="decimal" min="0" max="24" step="0.5" value="2" /></label>
+  </div>
+  <div class="results" aria-live="polite">
+    <div class="result big"><div class="k">Tokens per kWh</div><div class="v" data-o="tkwh">–</div></div>
+    <div class="result"><div class="k">Electricity per 1M tokens</div><div class="v" data-o="c1m">–</div></div>
+    <div class="result"><div class="k">Tokens per joule</div><div class="v" data-o="tpj">–</div></div>
+    <div class="result"><div class="k">Joules per token</div><div class="v" data-o="jpt">–</div></div>
+    <div class="result" data-idle><div class="k">All-in tokens per kWh</div><div class="v" data-o="all">–</div></div>
+    <div class="result" data-idle><div class="k">All-in per 1M tokens</div><div class="v" data-o="all1m">–</div></div>
+    <div class="result" data-idle><div class="k">Per day</div><div class="v" data-o="day" style="font-size:1rem">–</div></div>
+  </div>
+  <p class="small muted" data-o="ratio" style="margin-top:12px"></p>
+</div>
+<script>
+  import { tokensPerWatt } from '../../lib/calc/tokensPerWatt';
+  import { bindPrice, num, fmt, money } from '../../lib/prefs';
+  document.querySelectorAll<HTMLElement>('[data-calc="tpw"]').forEach((root) => {
+    const q = <T extends Element = HTMLInputElement>(s: string) => root.querySelector(s) as unknown as T;
+    const out = (k: string, v: string) => { q<HTMLElement>(`[data-o="${k}"]`).textContent = v; };
+    const idleOn = q('[data-idle-on]');
+    let price: () => { currency: string; price: number };
+    const run = () => {
+      root.querySelectorAll<HTMLElement>('[data-idle]').forEach((el) => (el.hidden = !idleOn.checked));
+      const p = price();
+      try {
+        const r = tokensPerWatt({ tokPerSec: num(q('[data-tps]')), wattsWall: num(q('[data-w]')), pricePerKwh: p.price,
+          ...(idleOn.checked ? { idleWatts: num(q('[data-iw]')), hoursGenPerDay: num(q('[data-h]')) } : {}) });
+        out('tkwh', fmt(r.tokensPerKwh)); out('c1m', money(p.currency, r.costPer1M)); out('tpj', fmt(r.tokensPerJoule, 3)); out('jpt', fmt(r.joulesPerToken, 1));
+        if (r.daily) {
+          out('all', r.daily.tokensPerKwhAllIn === null ? '–' : fmt(r.daily.tokensPerKwhAllIn));
+          out('all1m', r.daily.costPer1MAllIn === null ? '–' : money(p.currency, r.daily.costPer1MAllIn));
+          out('day', `${fmt(r.daily.kwh, 2)} kWh · ${fmt(r.daily.tokens)} tokens · ${money(p.currency, r.daily.cost)}`);
+          out('ratio', r.daily.costPer1MAllIn ? `Idle time makes each million tokens cost ${fmt(r.daily.costPer1MAllIn / r.costPer1M, 1)}× more than the "while generating" figure.` : '');
+        } else out('ratio', '');
+        root.style.opacity = '1';
+      } catch { root.style.opacity = '.75'; }
+    };
+    price = bindPrice(root, run);
+    root.addEventListener('input', run);
+    run();
+  });
+</script>

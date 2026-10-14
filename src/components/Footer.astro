@@ -1,0 +1,42 @@
+---
+import { u } from '../lib/url';
+import { BRAND, PRODUCT_NAME, PARTNER, CONTACT_EMAIL } from '../config/brand';
+---
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div>
+      <p class="brand"><strong>{PRODUCT_NAME}</strong> by {BRAND} · in partnership with <a href={PARTNER.url} rel="noopener">{PARTNER.name}</a></p>
+      <p class="muted small">No account = we store nothing. $5/month keeps it.</p>
+      <p class="small"><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>
+    </div>
+    <div>
+      <p class="h">Free tools</p>
+      <ul>
+        <li><a href={u('/calculator')}>Rack Density Calculator</a></li>
+        <li><a href={u('/learn/tokens-per-watt')}>Tokens per Watt</a></li>
+        <li><a href={u('/learn/homelab-power-calculator')}>Homelab Power Cost</a></li>
+        <li><a href={u('/learn/10-inch-mini-rack-planner')}>10-inch Rack Planner</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="h">Site</p>
+      <ul>
+        <li><a href={u('/try')}>Try {PRODUCT_NAME}</a></li>
+        <li><a href={u('/pricing')}>Pricing</a></li>
+        <li><a href={u('/learn')}>Learn</a></li>
+        <li><a href={u('/changelog')}>Changelog</a></li>
+        <li><a href={u('/privacy')}>Privacy</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<style>
+  .site-footer { border-top: 1px solid var(--line); padding: 40px 0 56px; margin-top: 40px; background: var(--bg2); font-size: .95rem; }
+  .cols { display: grid; gap: 24px; }
+  @media (min-width: 760px) { .cols { grid-template-columns: 2fr 1fr 1fr; } }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  a { color: #c9d4e3; text-decoration: none; }
+  a:hover { color: var(--accent); }
+  .h { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .8em; }
+  .brand a { color: var(--accent); }
+</style>

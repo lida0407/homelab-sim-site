@@ -1,0 +1,106 @@
+---
+import PriceField from './PriceField.astro';
+---
+<div class="calc" data-calc="fit">
+  <h3>10-inch rack planner</h3>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" aria-selected="true" data-tab="fit">Will it fit?</button>
+    <button type="button" role="tab" aria-selected="false" data-tab="plan">U and power planner</button>
+  </div>
+  <div data-panel="fit">
+    <div class="calc-grid">
+      <label class="field">Rack width <select data-rack><option value="10">10-inch</option><option value="19">19-inch</option></select></label>
+      <label class="field">Rack usable depth (mm) <input data-rd type="number" inputmode="decimal" min="0" value="250" /></label>
+      <label class="field">Device width (mm, body without ears) <input data-dw type="number" inputmode="decimal" min="0" value="200" /></label>
+      <label class="field">Device depth (mm) <input data-dd type="number" inputmode="decimal" min="0" value="190" /></label>
+      <label class="field">Device height (mm) <input data-dh type="number" inputmode="decimal" min="0" value="50" /></label>
+      <label class="field">Room for cables behind it (mm) <input data-cc type="number" inputmode="decimal" min="0" value="50" /></label>
+    </div>
+    <div class="results" aria-live="polite">
+      <div class="result"><div class="k">Width</div><div class="v" data-o="w">–</div></div>
+      <div class="result"><div class="k">Depth</div><div class="v" data-o="d">–</div></div>
+      <div class="result big"><div class="k">Takes</div><div class="v" data-o="u">–</div></div>
+    </div>
+    <ul class="notes" data-o="notes"></ul>
+  </div>
+  <div data-panel="plan" hidden>
+    <div class="calc-grid">
+      <label class="field">Rack height (U) <input data-ru type="number" inputmode="decimal" min="1" value="8" /></label>
+      <PriceField />
+    </div>
+    <div class="rowlist" data-rows style="margin-top:12px"></div>
+    <button type="button" class="btn btn-ghost" data-add style="margin-top:10px">+ Add item</button>
+    <div class="results" aria-live="polite">
+      <div class="result big"><div class="k">U used</div><div class="v" data-o="used">–</div></div>
+      <div class="result"><div class="k">Total draw</div><div class="v" data-o="tw">–</div></div>
+      <div class="result"><div class="k">Cost per month</div><div class="v" data-o="cost">–</div></div>
+    </div>
+    <div class="elev" data-elev aria-hidden="true"></div>
+  </div>
+</div>
+<template id="fit-row">
+  <div class="row" style="grid-template-columns: 2fr .8fr 1fr auto">
+    <label class="field">Item <input data-f="name" /></label>
+    <label class="field">U <input data-f="u" type="number" inputmode="decimal" min="0" step="1" /></label>
+    <label class="field">Watts <input data-f="watts" type="number" inputmode="decimal" min="0" /></label>
+    <button type="button" class="icon-btn" data-del aria-label="Remove item">×</button>
+  </div>
+</template>
+<script>
+  import { fitDevice, planRack, type RackWidth } from '../../lib/calc/rackFit';
+  import { HOURS_PER_MONTH } from '../../lib/calc/powerCost';
+  import { bindPrice, num, fmt, money } from '../../lib/prefs';
+  const COLORS = ['#38bdf8', '#34d399', '#fbbf24', '#a78bfa', '#fb7185', '#94a3b8'];
+  document.querySelectorAll<HTMLElement>('[data-calc="fit"]').forEach((root) => {
+    const q = (s: string) => root.querySelector(s) as HTMLInputElement;
+    const out = (k: string, v: string) => { (root.querySelector(`[data-o="${k}"]`) as HTMLElement).textContent = v; };
+    root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+      root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      root.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== b.dataset.tab));
+    }));
+    const fit = () => {
+      const r = fitDevice({ rack: (q('[data-rack]').value as RackWidth), rackDepthMm: num(q('[data-rd]')), deviceWidthMm: num(q('[data-dw]')),
+        deviceDepthMm: num(q('[data-dd]')), deviceHeightMm: num(q('[data-dh]')), cableClearanceMm: num(q('[data-cc]'), 50) });
+      out('w', r.fitsWidth ? `✓ ${fmt(r.widthSpareMm, 1)} mm spare` : '✗ too wide');
+      out('d', r.fitsDepth ? `✓ ${fmt(r.depthSpareMm, 1)} mm spare` : '✗ too deep');
+      out('u', `${r.u}U`);
+      const notes = root.querySelector<HTMLElement>('[data-o="notes"]')!;
+      notes.replaceChildren(...r.notes.map((n) => { const li = document.createElement('li'); li.textContent = n; return li; }));
+    };
+    const rows = root.querySelector<HTMLElement>('[data-rows]')!;
+    const tpl = document.getElementById('fit-row') as HTMLTemplateElement;
+    const add = (name: string, u: number, watts: number) => {
+      const el = tpl.content.firstElementChild!.cloneNode(true) as HTMLElement;
+      (el.querySelector('[data-f="name"]') as HTMLInputElement).value = name;
+      (el.querySelector('[data-f="u"]') as HTMLInputElement).value = String(u);
+      (el.querySelector('[data-f="watts"]') as HTMLInputElement).value = String(watts);
+      el.querySelector('[data-del]')!.addEventListener('click', () => { el.remove(); plan(); });
+      rows.appendChild(el);
+    };
+    let price: () => { currency: string; price: number };
+    const plan = () => {
+      const rackU = Math.max(1, Math.round(num(q('[data-ru]'), 8)));
+      const items = [...rows.querySelectorAll<HTMLElement>('.row')].map((el) => ({
+        name: (el.querySelector('[data-f="name"]') as HTMLInputElement).value || 'Item',
+        u: Math.max(0, Math.round(num(el.querySelector('[data-f="u"]') as HTMLInputElement))),
+        watts: num(el.querySelector('[data-f="watts"]') as HTMLInputElement) }));
+      const r = planRack(rackU, items);
+      const p = price();
+      out('used', `${r.usedU} of ${rackU}U (${r.pctUsed} %)${r.overflowU ? ` · ${r.overflowU}U over` : ''}`);
+      out('tw', `${fmt(r.totalW)} W`);
+      out('cost', money(p.currency, (r.totalW * HOURS_PER_MONTH / 1000) * p.price));
+      const elev = root.querySelector<HTMLElement>('[data-elev]')!;
+      const cells: HTMLElement[] = [];
+      items.forEach((it, i) => { for (let k = 0; k < it.u; k++) { const d = document.createElement('div'); d.style.background = COLORS[i % COLORS.length]; d.textContent = k === 0 ? it.name : ''; cells.push(d); } });
+      for (let k = cells.length; k < rackU; k++) { const d = document.createElement('div'); d.style.background = 'rgba(148,163,184,.14)'; cells.push(d); }
+      cells.forEach((c, k) => { if (k >= rackU) c.style.background = '#f87171'; });
+      elev.replaceChildren(...cells);
+    };
+    [['Patch panel', 1, 0], ['Switch', 1, 10], ['Mini PC shelf', 2, 25], ['Mini PC shelf', 2, 25], ['UPS', 2, 10]].forEach(([n, u, w]) => add(n as string, u as number, w as number));
+    root.querySelector('[data-add]')!.addEventListener('click', () => { add('', 1, 0); plan(); });
+    price = bindPrice(root, plan);
+    root.addEventListener('input', () => { fit(); plan(); });
+    root.addEventListener('change', () => { fit(); plan(); });
+    fit(); plan();
+  });
+</script>

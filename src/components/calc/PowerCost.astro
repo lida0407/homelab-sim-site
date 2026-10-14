@@ -1,0 +1,89 @@
+---
+import PriceField from './PriceField.astro';
+import { PRESETS } from '../../lib/calc/powerCost';
+---
+<div class="calc" data-calc="power">
+  <h3>Homelab power cost calculator</h3>
+  <datalist id="power-presets">{PRESETS.map((p) => <option value={p.name} />)}</datalist>
+  <div class="rowlist" data-rows></div>
+  <div class="btn-row" style="margin:12px 0 16px">
+    <button type="button" class="btn btn-ghost" data-add>+ Add device</button>
+    <button type="button" class="btn btn-ghost" data-copy>Copy as template rows</button>
+    <span class="small muted" data-copied role="status"></span>
+  </div>
+  <div class="calc-grid">
+    <PriceField />
+    <label class="field">Add UPS losses (%) <input data-ups type="number" inputmode="decimal" min="0" max="20" step="1" value="0" /><span class="hint">a line-interactive UPS typically adds a few percent</span></label>
+  </div>
+  <div class="results" aria-live="polite">
+    <div class="result big"><div class="k">Cost per month</div><div class="v" data-o="cm">–</div></div>
+    <div class="result"><div class="k">Cost per year</div><div class="v" data-o="cy">–</div></div>
+    <div class="result"><div class="k">Average draw</div><div class="v" data-o="w">–</div></div>
+    <div class="result"><div class="k">Energy</div><div class="v" data-o="kwh" style="font-size:1rem">–</div></div>
+    <div class="result"><div class="k">Heat</div><div class="v" data-o="btu">–</div></div>
+  </div>
+  <div class="bars" data-bars></div>
+  <p class="small muted" style="margin-top:12px">Typical values; real devices vary. Measure at the wall for real numbers.</p>
+</div>
+<template id="power-row">
+  <div class="row">
+    <label class="field name">Device <input data-f="name" list="power-presets" /></label>
+    <label class="field">Qty <input data-f="qty" type="number" inputmode="decimal" min="0" step="1" /></label>
+    <label class="field">Idle W <input data-f="idleW" type="number" inputmode="decimal" min="0" /></label>
+    <label class="field">Load W <input data-f="loadW" type="number" inputmode="decimal" min="0" /></label>
+    <label class="field">Busy h/day <input data-f="loadHoursPerDay" type="number" inputmode="decimal" min="0" max="24" step="0.5" /></label>
+    <button type="button" class="icon-btn" data-del aria-label="Remove device">×</button>
+  </div>
+</template>
+<script>
+  import { labCost, PRESETS, type DeviceRow } from '../../lib/calc/powerCost';
+  import { bindPrice, num, fmt, money } from '../../lib/prefs';
+  document.querySelectorAll<HTMLElement>('[data-calc="power"]').forEach((root) => {
+    const rows = root.querySelector<HTMLElement>('[data-rows]')!;
+    const tpl = document.getElementById('power-row') as HTMLTemplateElement;
+    const out = (k: string, v: string) => { (root.querySelector(`[data-o="${k}"]`) as HTMLElement).textContent = v; };
+    const add = (d: DeviceRow) => {
+      const el = tpl.content.firstElementChild!.cloneNode(true) as HTMLElement;
+      (Object.keys(d) as (keyof DeviceRow)[]).forEach((k) => { (el.querySelector(`[data-f="${k}"]`) as HTMLInputElement).value = String(d[k]); });
+      el.querySelector('[data-del]')!.addEventListener('click', () => { el.remove(); run(); });
+      const name = el.querySelector('[data-f="name"]') as HTMLInputElement;
+      name.addEventListener('change', () => {
+        const p = PRESETS.find((x) => x.name === name.value);
+        if (p) { (el.querySelector('[data-f="idleW"]') as HTMLInputElement).value = String(p.idleW); (el.querySelector('[data-f="loadW"]') as HTMLInputElement).value = String(p.loadW); run(); }
+      });
+      rows.appendChild(el);
+    };
+    const read = (): DeviceRow[] => [...rows.querySelectorAll<HTMLElement>('.row')].map((el) => {
+      const f = (k: string) => el.querySelector(`[data-f="${k}"]`) as HTMLInputElement;
+      return { name: f('name').value || 'Device', qty: num(f('qty'), 1), idleW: num(f('idleW')), loadW: num(f('loadW')), loadHoursPerDay: num(f('loadHoursPerDay')) };
+    });
+    let price: () => { currency: string; price: number };
+    const run = () => {
+      const p = price();
+      const r = labCost(read(), p.price, num(root.querySelector('[data-ups]') as HTMLInputElement));
+      out('cm', money(p.currency, r.costMonth)); out('cy', money(p.currency, r.costYear, 0)); out('w', `${fmt(r.avgW)} W`);
+      out('kwh', `${fmt(r.kwhMonth)} kWh/month · ${fmt(r.kwhYear)} kWh/year`); out('btu', `${fmt(r.btuPerHour)} BTU/h`);
+      const bars = root.querySelector<HTMLElement>('[data-bars]')!;
+      bars.replaceChildren(...r.devices.map((d) => {
+        const b = document.createElement('div'); b.className = 'bar';
+        const n = document.createElement('span'); n.textContent = d.name;
+        const v = document.createElement('span'); v.className = 'muted'; v.textContent = `${fmt(d.avgW)} W · ${money(p.currency, d.costMonth)}/mo · ${fmt(d.share * 100)} %`;
+        const t = document.createElement('div'); t.className = 'track';
+        const f = document.createElement('div'); f.className = 'fill'; f.style.width = `${Math.max(1, d.share * 100)}%`;
+        t.appendChild(f); b.append(n, v, t); return b;
+      }));
+    };
+    const presetRow = (name: string, qty: number, h: number): DeviceRow => { const p = PRESETS.find((x) => x.name.startsWith(name))!; return { name: p.name, qty, idleW: p.idleW, loadW: p.loadW, loadHoursPerDay: h }; };
+    [presetRow('2U server', 1, 4), presetRow('NAS, 4 bays', 1, 0), presetRow('Mini PC (low-power', 2, 0)].forEach(add);
+    root.querySelector('[data-add]')!.addEventListener('click', () => { add({ name: '', qty: 1, idleW: 10, loadW: 20, loadHoursPerDay: 0 }); run(); });
+    root.querySelector('[data-copy]')!.addEventListener('click', async () => {
+      const text = read().flatMap((d) => Array.from({ length: Math.max(1, Math.round(d.qty)) }, (_, i) => `${d.name}${d.qty > 1 ? `-${i + 1}` : ''}\t${d.name}`)).join('\n');
+      const msg = root.querySelector<HTMLElement>('[data-copied]')!;
+      try { await navigator.clipboard.writeText(text); msg.textContent = 'Copied: paste into the Devices sheet (name, model).'; }
+      catch { msg.textContent = 'Copy failed: your browser blocked the clipboard.'; }
+    });
+    price = bindPrice(root, run);
+    root.addEventListener('input', run);
+    run();
+  });
+</script>

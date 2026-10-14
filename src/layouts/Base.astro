@@ -1,0 +1,62 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { abs, u } from '../lib/url';
+import { BRAND, PRODUCT_NAME, SITE_URL, BASE } from '../config/brand';
+
+interface Props {
+  title: string;               // full <title>
+  description: string;
+  path: string;                // route path like '/pricing'
+  ogImage?: string;            // path under public, e.g. '/og/home.png'
+  schema?: object[];           // JSON-LD objects for this page
+  noindex?: boolean;
+}
+const { title, description, path, ogImage = '/og/home.png', schema = [], noindex = false } = Astro.props;
+const canonical = abs(path);
+const org = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'Organization', '@id': `${SITE_URL}${BASE}/#org`, name: BRAND, url: abs('/'), logo: `${SITE_URL}${u('/icon-512.png')}`,
+      description: `${BRAND} makes ${PRODUCT_NAME}, a 3D model of your homelab rack built from a spreadsheet, and free rack, power and AI-efficiency calculators. In partnership with Sensaka.` },
+    { '@type': 'WebSite', '@id': `${SITE_URL}${BASE}/#website`, name: BRAND, url: abs('/'), publisher: { '@id': `${SITE_URL}${BASE}/#org` } },
+  ],
+};
+const ogTitle = title.replace(/ \| .*$/, '');
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta name="theme-color" content="#070b14" />
+    <link rel="icon" href={u('/favicon.svg')} type="image/svg+xml" />
+    <link rel="apple-touch-icon" href={u('/icon-512.png')} />
+    <link rel="alternate" type="application/rss+xml" title={`${PRODUCT_NAME} changelog`} href={u('/changelog.xml')} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={BRAND} />
+    <meta property="og:title" content={ogTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={`${SITE_URL}${u(ogImage)}`} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={ogTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={`${SITE_URL}${u(ogImage)}`} />
+    <script type="application/ld+json" set:html={JSON.stringify(org)} />
+    {schema.map((s) => <script type="application/ld+json" set:html={JSON.stringify(s)} />)}
+  </head>
+  <body>
+    <a class="sr-only" href="#main">Skip to content</a>
+    <Header />
+    <main id="main"><slot /></main>
+    <Footer />
+  </body>
+</html>

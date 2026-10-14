@@ -1,0 +1,35 @@
+<div class="calc" data-calc="ups">
+  <h3>UPS runtime calculator</h3>
+  <div class="calc-grid">
+    <label class="field">Load at the UPS output (W) <input data-l type="number" inputmode="decimal" min="0" value="150" /></label>
+    <label class="field">UPS watt rating (W, not VA) <input data-r type="number" inputmode="decimal" min="0" value="900" /></label>
+    <label class="field">Battery energy (Wh) <input data-wh type="number" inputmode="decimal" min="0" value="216" /><span class="hint">12 V × 9 Ah × 2 = 216 Wh</span></label>
+    <label class="field">Battery health (%) <input data-hp type="number" inputmode="decimal" min="10" max="100" value="80" /></label>
+  </div>
+  <div class="results" aria-live="polite">
+    <div class="result big"><div class="k">Estimated runtime</div><div class="v" data-o="rt">–</div></div>
+    <div class="result"><div class="k">Load</div><div class="v" data-o="lp">–</div></div>
+    <div class="result"><div class="k">Verdict</div><div class="v" data-o="v">–</div></div>
+  </div>
+  <ul class="notes" data-o="notes"></ul>
+</div>
+<script>
+  import { upsRuntime } from '../../lib/calc/upsRuntime';
+  import { num, fmt } from '../../lib/prefs';
+  document.querySelectorAll<HTMLElement>('[data-calc="ups"]').forEach((root) => {
+    const q = (s: string) => root.querySelector(s) as HTMLInputElement;
+    const out = (k: string, v: string) => { (root.querySelector(`[data-o="${k}"]`) as HTMLElement).textContent = v; };
+    const run = () => {
+      try {
+        const r = upsRuntime({ loadW: num(q('[data-l]')), upsRatedW: num(q('[data-r]')), batteryWh: num(q('[data-wh]')), batteryHealth: num(q('[data-hp]'), 80) / 100 });
+        const m = Math.round(r.runtimeMin);
+        out('rt', m >= 60 ? `≈ ${Math.floor(m / 60)} h ${m % 60} min` : `≈ ${m} min`);
+        out('lp', `${fmt(r.loadPct)} %`); out('v', r.verdict === 'ok' ? 'OK' : r.verdict === 'tight' ? 'Tight' : 'Overloaded');
+        const notes = root.querySelector<HTMLElement>('[data-o="notes"]')!;
+        notes.replaceChildren(...r.notes.map((n) => { const li = document.createElement('li'); li.textContent = n; return li; }));
+      } catch { out('rt', '–'); }
+    };
+    root.addEventListener('input', run);
+    run();
+  });
+</script>

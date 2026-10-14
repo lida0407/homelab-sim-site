@@ -1,0 +1,23 @@
+---
+import { u } from '../lib/url';
+import { TRY } from '../config/brand';
+interface Props { title: string; body: string; button?: string; utm?: string }
+const { title, body, button = 'See it in 3D', utm } = Astro.props;
+const href = u('/try') + (utm ? `?utm_source=learn&utm_medium=cta&utm_content=${utm}` : '');
+---
+<aside class="see3d card">
+  <div>
+    <h3>{title}</h3>
+    <p>{body}</p>
+  </div>
+  <div class="btn-row">
+    <a class="btn btn-primary" href={href}>{button}</a>
+    {!TRY.live && <span class="pill pill-soon">Try: {TRY.comingNote}</span>}
+  </div>
+</aside>
+<style>
+  .see3d { display: grid; gap: 14px; margin: 2.2em 0; background: linear-gradient(135deg, rgba(56,189,248,.12), rgba(167,139,250,.10)); border-color: rgba(56,189,248,.35); }
+  @media (min-width: 720px) { .see3d { grid-template-columns: 1fr auto; align-items: center; } }
+  .see3d h3 { margin: 0 0 .3em; }
+  .see3d p { margin: 0; color: #c9d4e3; }
+</style>
