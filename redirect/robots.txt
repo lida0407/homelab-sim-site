@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lida0407.github.io/rack-density-site/sitemap-index.xml
