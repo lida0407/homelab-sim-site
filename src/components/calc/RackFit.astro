@@ -25,7 +25,7 @@ import PriceField from './PriceField.astro';
   </div>
   <div data-panel="plan" hidden>
     <div class="calc-grid">
-      <label class="field">Rack height (U) <input data-ru type="number" inputmode="decimal" min="1" value="8" /></label>
+      <label class="field">Rack height (U) <input data-ru type="number" inputmode="decimal" min="1" value="10" /></label>
       <PriceField />
     </div>
     <div class="rowlist" data-rows style="margin-top:12px"></div>
@@ -79,7 +79,7 @@ import PriceField from './PriceField.astro';
     };
     let price: () => { currency: string; price: number };
     const plan = () => {
-      const rackU = Math.max(1, Math.round(num(q('[data-ru]'), 8)));
+      const rackU = Math.max(1, Math.round(num(q('[data-ru]'), 10)));
       const items = [...rows.querySelectorAll<HTMLElement>('.row')].map((el) => ({
         name: (el.querySelector('[data-f="name"]') as HTMLInputElement).value || 'Item',
         u: Math.max(0, Math.round(num(el.querySelector('[data-f="u"]') as HTMLInputElement))),

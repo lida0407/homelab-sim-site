@@ -73,7 +73,7 @@ const circuits = [
           const v = document.createElement('span'); v.className = 'muted'; v.textContent = `${t} · ${fmt(f * 100)} %`;
           const tr = document.createElement('div'); tr.className = 'track';
           const fi = document.createElement('div'); fi.className = 'fill'; fi.style.width = `${Math.min(100, f * 100)}%`;
-          fi.style.background = f > 0.95 ? '#f87171' : f > 0.8 ? '#fbbf24' : '#34d399';
+          fi.style.background = n === 'Space' ? '#38bdf8' : f > 0.95 ? '#f87171' : f > 0.8 ? '#fbbf24' : '#34d399';
           tr.appendChild(fi); b.append(a, v, tr); return b;
         }));
       } catch { out('n', '–'); }
